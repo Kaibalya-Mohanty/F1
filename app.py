@@ -1,30 +1,31 @@
 import os
+import json
 
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
 
 
-# --------------------------------------------------
-# CONFIGURATION
-# --------------------------------------------------
+# -----------------------------
+# Configuration
+# -----------------------------
 
 load_dotenv()
 
-API_KEY = os.getenv("GROQ_API_KEY")
+api_key = os.getenv("GROQ_API_KEY")
 
-if not API_KEY:
-    st.error("GROQ_API_KEY is missing from the .env file.")
+if not api_key:
+    st.error("GROQ_API_KEY is not configured in the .env file.")
     st.stop()
 
-client = Groq(api_key=API_KEY)
+client = Groq(api_key=api_key)
 
 MODEL = "openai/gpt-oss-120b"
 
 
-# --------------------------------------------------
-# STREAMLIT UI
-# --------------------------------------------------
+# -----------------------------
+# Streamlit UI
+# -----------------------------
 
 st.set_page_config(
     page_title="F1 Strategy Copilot",
@@ -33,71 +34,137 @@ st.set_page_config(
 )
 
 st.title("🏎️ F1 Strategy Copilot")
-st.caption("Multi-Agent Generative AI System for Formula 1 Strategy Analysis")
+st.write("Multi-Agent Generative AI System for Formula 1 Strategy Analysis")
 
-
-# --------------------------------------------------
-# USER INPUT
-# --------------------------------------------------
 
 question = st.text_area(
     "Ask your F1 strategy question:",
-    placeholder="Example: Why is an undercut useful in Formula 1?",
-    height=120
+    placeholder="Example: Why is an undercut useful in Formula 1?"
 )
 
 
-# --------------------------------------------------
-# F1 PROMPT
-# --------------------------------------------------
+# -----------------------------
+# Router Agent
+# -----------------------------
 
-SYSTEM_PROMPT = """
-You are an F1 race strategy assistant.
+def route_question(user_question):
 
-Your job is to explain Formula 1 race strategy
-clearly and accurately.
+    router_prompt = """
+You are the routing agent of an F1 Strategy Analysis system.
 
-Rules:
+Your job is ONLY to classify the user's question and determine which
+specialized agents will be needed later.
 
-1. Explain technical terms when necessary.
-2. Separate known facts from interpretation.
-3. Do not invent race data.
-4. If specific race data is unavailable, clearly say so.
-5. Do not pretend to know a team's internal strategy
-   unless reliable information is provided.
-6. Give concise but useful explanations.
+Do NOT answer the user's question.
+
+Classify the question into exactly one of these intents:
+
+- RACE_KNOWLEDGE
+  General Formula 1 concepts, rules, tyres, strategy terminology, etc.
+
+- DATA_ANALYSIS
+  Questions requiring calculations or analysis of structured race data,
+  such as lap times, tyre stints, pit stops, positions, or weather.
+
+- STRATEGY_ANALYSIS
+  Questions asking why a strategic decision happened or whether a strategy
+  was effective.
+
+- DRIVER_COMPARISON
+  Questions comparing drivers using race performance or strategy data.
+
+- GENERAL
+  Questions that do not fit the above categories.
+
+Available agents:
+
+- RAG_AGENT
+  Retrieves relevant F1 knowledge and documents.
+
+- DATA_AGENT
+  Performs calculations and analysis on structured race data.
+
+- STRATEGY_AGENT
+  Combines retrieved knowledge and data to analyze race strategy.
+
+Return ONLY the structured JSON requested by the schema.
 """
 
 
-# --------------------------------------------------
-# GENERATE RESPONSE
-# --------------------------------------------------
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": router_prompt
+            },
+            {
+                "role": "user",
+                "content": user_question
+            }
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "f1_router",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "intent": {
+                            "type": "string",
+                            "enum": [
+                                "RACE_KNOWLEDGE",
+                                "DATA_ANALYSIS",
+                                "STRATEGY_ANALYSIS",
+                                "DRIVER_COMPARISON",
+                                "GENERAL"
+                            ]
+                        },
+                        "agents": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "RAG_AGENT",
+                                    "DATA_AGENT",
+                                    "STRATEGY_AGENT"
+                                ]
+                            }
+                        },
+                        "reason": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "intent",
+                        "agents",
+                        "reason"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+        temperature=0.2
+    )
 
-if st.button("🔍 Analyze Strategy", type="primary"):
+    return json.loads(response.choices[0].message.content)
+
+
+# -----------------------------
+# Run
+# -----------------------------
+
+if st.button("🔍 Analyze Strategy"):
 
     if not question.strip():
-        st.warning("Please enter a question first.")
+        st.warning("Please enter an F1 question.")
         st.stop()
 
-    with st.spinner("Analyzing your question..."):
+    with st.spinner("Routing your question..."):
 
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": question
-                }
-            ],
-            temperature=0.2
-        )
+        routing_result = route_question(question)
 
-        answer = response.choices[0].message.content
+    st.subheader("🧭 Router Decision")
 
-    st.subheader("🧠 F1 Strategy Analysis")
-
-    st.write(answer)
+    st.json(routing_result)
