@@ -1,0 +1,79 @@
+F1 RACE STRATEGY — TYRE DEGRADATION
+
+Definition
+
+Tyre degradation is the loss of tyre performance as a tyre is used during a stint. As a tyre degrades, it can lose grip and its ability to produce competitive lap times can decrease.
+
+Tyre degradation is an important factor in Formula 1 race strategy because it influences stint length, pit-stop timing and the number of pit stops a team may choose to make.
+
+Types of Tyre Performance Loss
+
+Tyre performance can be affected by both physical wear and thermal behaviour.
+
+Wear occurs as the tyre loses performance through use over multiple laps.
+
+Thermal degradation occurs when the tyre becomes excessively hot and loses performance. Managing tyre temperature can therefore be important during a race.
+
+Factors Affecting Tyre Degradation
+
+1. Tyre compound
+
+Different compounds have different performance and durability characteristics. Softer compounds generally provide more grip but can have a shorter useful life, while harder compounds generally provide greater durability but may provide less peak performance.
+
+2. Track characteristics
+
+The circuit surface and corner characteristics influence how much energy is put into the tyres. Different asphalt surfaces can therefore produce different degradation behaviour.
+
+3. Track temperature
+
+Higher track temperatures can affect tyre temperatures and may increase the difficulty of keeping tyres within their optimal operating range.
+
+4. Driving style
+
+Aggressive acceleration, braking and cornering can increase the demands placed on the tyres.
+
+5. Car setup
+
+Aerodynamic and mechanical setup can influence how much load and stress is placed on the tyres.
+
+6. Traffic and dirty air
+
+Following another car can affect the behaviour of the tyres and may make tyre management more difficult.
+
+How Degradation Affects Strategy
+
+Tyre degradation can influence when a driver should make a pit stop.
+
+If degradation is high, lap times may become progressively slower as a stint continues. A team may therefore choose to stop earlier and switch to a fresh set of tyres.
+
+If degradation is low, a team may be able to extend a stint and complete fewer pit stops.
+
+The team must compare the performance gained from fresh tyres with the time lost during a pit stop.
+
+Degradation and the Undercut
+
+High tyre degradation can make an undercut more powerful.
+
+A driver who pits earlier receives fresh tyres while the rival continues on older tyres. If the rival's tyre performance has degraded significantly, the driver on fresh tyres may gain enough time during the out-lap and subsequent laps to complete the undercut.
+
+Degradation and the Overcut
+
+Lower degradation can make an overcut more viable.
+
+If a driver can maintain competitive lap times on older tyres while a rival struggles to bring fresh tyres up to their optimal operating window, staying out longer can sometimes create a strategic advantage.
+
+Tyre Management
+
+Drivers do not always push at maximum pace throughout a stint. They may manage their tyres by controlling their pace and avoiding excessive overheating or wear.
+
+This can allow a driver to extend a stint and preserve tyre performance for later in the race.
+
+Strategic Importance
+
+Teams monitor tyre degradation during practice sessions and the race. They compare actual tyre performance with their expected models and may change their planned strategy when degradation behaves differently from predictions.
+
+High degradation can make two-stop strategies more attractive, while low degradation can make longer one-stop strategies more viable. However, the best strategy also depends on pit-lane time loss, track position, overtaking difficulty, traffic, weather and Safety Car or Virtual Safety Car periods.
+
+Important distinction
+
+Tyre degradation describes a change in tyre performance. It does not by itself determine the correct race strategy. A real strategy decision requires additional information such as lap times, tyre compound, tyre age, traffic, track position and race conditions.

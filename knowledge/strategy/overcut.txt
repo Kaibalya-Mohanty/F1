@@ -1,0 +1,46 @@
+F1 RACE STRATEGY — OVERCUT
+
+Definition
+
+An overcut is a race strategy in which a driver stays on track after a rival has made a pit stop, attempting to gain an advantage by completing faster or more valuable laps before making their own stop.
+
+How the Overcut Works
+
+When the rival pits, the driver choosing the overcut remains on track. The driver may attempt to build enough of a time advantage before making their own pit stop.
+
+The strategy can work when the driver remaining on track can maintain competitive lap times while the rival loses time getting their new tyres up to performance.
+
+Factors Affecting an Overcut
+
+1. Tyre condition
+The driver remaining on track must still have enough tyre performance to produce competitive lap times.
+
+2. Tyre warm-up
+If fresh tyres take time to reach their optimal operating window, the driver staying out may temporarily have better pace than the driver who has just stopped.
+
+3. Track characteristics
+The strategy can be more useful at circuits where overtaking is difficult or where maintaining track position is important.
+
+4. Traffic
+The driver staying out needs to avoid losing too much time in traffic.
+
+5. Pit-stop timing
+The eventual pit stop must be timed so that the driver can return to the track in a favorable position.
+
+Undercut vs Overcut
+
+Undercut:
+Pit earlier and use fresher tyres to gain time.
+
+Overcut:
+Stay out longer and use the additional laps to gain time before pitting.
+
+Neither strategy is automatically better. Their effectiveness depends on tyre behaviour, traffic, track position, pit-lane time loss, weather, and race conditions.
+
+Example
+
+Driver A is ahead of Driver B. Driver B pits first and receives fresh tyres. Driver A remains on track and continues producing competitive lap times. If Driver B's new tyres take time to reach their optimal performance and Driver A gains enough time before eventually pitting, Driver A may retain or gain track position.
+
+Important distinction
+
+An overcut is a strategic mechanism, not proof that a particular team made the correct decision. Analysis of an actual race requires the relevant race data and supporting evidence.

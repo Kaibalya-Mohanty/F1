@@ -1,0 +1,54 @@
+F1 RACE STRATEGY — UNDERCUT
+
+Definition
+
+An undercut is a race strategy in which a chasing driver pits before the driver ahead. The driver who pits first receives fresh tyres and attempts to use the additional pace to gain enough time to move ahead when the other driver eventually makes their pit stop.
+
+How the Undercut Works
+
+The main advantage of an undercut comes from the difference between fresh and used tyres. After making an early pit stop, the driver can complete a fast lap on fresher tyres while the rival continues on older tyres.
+
+If the time gained on the fresher tyres is greater than the time lost during the pit stop cycle, the driver who attempted the undercut can emerge ahead after the rival pits.
+
+Factors Affecting an Undercut
+
+The effectiveness of an undercut depends on several factors:
+
+1. Tyre degradation
+Higher tyre degradation can increase the performance difference between fresh and worn tyres, making an undercut more valuable.
+
+2. Track position
+The undercut is particularly useful when overtaking on track is difficult. Gaining track position through the pit-stop cycle can therefore be valuable.
+
+3. Pit-stop loss
+The driver must gain enough time after the pit stop to compensate for the time lost entering, completing and exiting the pit lane.
+
+4. Traffic
+A driver attempting an undercut needs clean air after the pit stop. Traffic can reduce or eliminate the advantage of the fresher tyres.
+
+5. Tyre warm-up
+Fresh tyres do not always provide their maximum performance immediately. If the new tyres are difficult to bring into their operating window, the undercut may be less effective.
+
+6. Rival response
+The driver ahead may respond by pitting immediately after the undercut attempt. This is sometimes called covering the undercut.
+
+When an Undercut Can Be Effective
+
+An undercut can be particularly useful when:
+- tyre degradation is significant,
+- overtaking is difficult,
+- the chasing driver can obtain clean air after stopping,
+- the new tyres provide an immediate pace advantage,
+- and the driver is close enough to the rival for the pit-stop cycle to matter.
+
+Limitations
+
+An undercut is not automatically successful. Traffic, slow tyre warm-up, a poorly timed pit stop, or a Safety Car or Virtual Safety Car can change the outcome.
+
+Example
+
+Suppose Driver A is behind Driver B. Driver A pits first and receives fresh tyres. Driver A then produces faster laps while Driver B remains on older tyres. When Driver B eventually pits, Driver A may emerge ahead if enough time was gained during the additional laps.
+
+Important distinction
+
+An undercut explains a strategic mechanism. It does not prove why a particular team chose to pit at a particular moment. To analyze a real race decision, additional race data and reliable sources are required.

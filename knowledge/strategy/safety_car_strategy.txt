@@ -1,0 +1,53 @@
+F1 RACE STRATEGY — SAFETY CAR
+
+Definition
+
+A Safety Car is deployed when an incident or track condition requires the race to continue at a reduced speed for safety. Cars slow down and queue behind the Safety Car, and overtaking is not permitted while it is deployed.
+
+Strategic Importance
+
+A Safety Car can significantly change race strategy because the reduced speed of cars on track can alter the relative time cost of making a pit stop.
+
+A pit stop during a Safety Car period can therefore be strategically valuable compared with making the same stop under normal racing conditions.
+
+Why Teams May Pit During a Safety Car
+
+1. Reduced pit-stop time loss
+
+Because cars on the racing circuit are travelling more slowly during a Safety Car period, the relative disadvantage of entering the pit lane can be reduced.
+
+2. Tyre change opportunity
+
+A team may use the Safety Car period to change tyres while minimizing the relative time loss compared with a normal racing lap.
+
+3. Strategic reset
+
+A Safety Car can reduce gaps between cars, changing the competitive situation and creating new strategic possibilities.
+
+4. Race position
+
+Teams must consider where a driver will return to the track after the pit stop. A cheaper pit stop is not automatically beneficial if the driver loses too many positions.
+
+5. Remaining race distance
+
+The number of laps remaining affects whether a tyre change is worthwhile. A team must consider whether the new tyres can provide enough performance for the remaining distance.
+
+Virtual Safety Car
+
+A Virtual Safety Car (VSC) is different from a physical Safety Car. Under a VSC, drivers slow down and must maintain a prescribed time delta while remaining separated on track.
+
+A VSC can also create a strategic pit-stop opportunity because cars on track are travelling at controlled reduced speeds.
+
+Strategic Risks
+
+A Safety Car decision involves uncertainty.
+
+A team may choose to pit and gain a cheaper tyre change, but the race may restart in an unfavorable position.
+
+Alternatively, a team may remain on track and preserve track position, but lose the opportunity to make a relatively low-cost pit stop.
+
+Teams therefore need to consider tyre condition, track position, remaining race distance, pit-lane time loss, rival strategies and the probability of future interruptions.
+
+Important distinction
+
+A Safety Car creates a strategic opportunity, but it does not automatically make pitting the correct decision. Analysis of a specific Safety Car decision requires actual race data and information about the circumstances at that moment.
