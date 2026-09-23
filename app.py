@@ -5,6 +5,9 @@ import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
 
+from RAG.rag_agent import answer_question
+
+from data.data_agent import analyze_lap_data
 
 # -----------------------------
 # Configuration
@@ -50,44 +53,72 @@ question = st.text_area(
 def route_question(user_question):
 
     router_prompt = """
-You are the routing agent of an F1 Strategy Analysis system.
+You are the Router Agent for an F1 Strategy Copilot.
 
-Your job is ONLY to classify the user's question and determine which
-specialized agents will be needed later.
+Your job is to determine which specialized agent should handle the user's question.
 
-Do NOT answer the user's question.
+Available intents:
 
-Classify the question into exactly one of these intents:
+1. RACE_KNOWLEDGE
+Use this for general Formula 1 knowledge and strategy concepts that can be answered from the knowledge base.
 
-- RACE_KNOWLEDGE
-  General Formula 1 concepts, rules, tyres, strategy terminology, etc.
+Examples:
+- What is an undercut?
+- Why is tyre degradation important?
+- How does an overcut work?
+- What happens during a Safety Car?
 
-- DATA_ANALYSIS
-  Questions requiring calculations or analysis of structured race data,
-  such as lap times, tyre stints, pit stops, positions, or weather.
+2. DATA_ANALYSIS
+Use this when the question asks for a calculation, measurement,
+comparison, statistic, or specific result from the available race dataset.
 
-- STRATEGY_ANALYSIS
-  Questions asking why a strategic decision happened or whether a strategy
-  was effective.
+Examples:
+- What is the fastest lap?
+- What is the average lap time?
+- How many laps did Max Verstappen complete?
+- Which driver had the fastest lap?
+- What was Lando Norris's average lap time?
+- Which driver was fastest in the dataset?
 
-- DRIVER_COMPARISON
-  Questions comparing drivers using race performance or strategy data.
+IMPORTANT:
+If a question asks for a specific race-data value such as
+fastest lap, average lap time, lap count, tyre age, position,
+or other measurable information, classify it as DATA_ANALYSIS,
+not RACE_KNOWLEDGE.
 
-- GENERAL
-  Questions that do not fit the above categories.
+3. STRATEGY_ANALYSIS
+Use this when the user asks for strategic analysis or wants to
+evaluate a race strategy using race data and F1 knowledge.
 
-Available agents:
+Examples:
+- Should the driver have pitted earlier?
+- Was an undercut the better strategy?
+- Why did this strategy work?
+- Would a different tyre strategy have been better?
 
-- RAG_AGENT
-  Retrieves relevant F1 knowledge and documents.
+4. DRIVER_COMPARISON
+Use this when the user explicitly asks to compare drivers.
 
-- DATA_AGENT
-  Performs calculations and analysis on structured race data.
+Examples:
+- Compare Verstappen and Norris.
+- Who had the better lap times?
+- Compare their race pace.
 
-- STRATEGY_AGENT
-  Combines retrieved knowledge and data to analyze race strategy.
+5. GENERAL
+Use this for questions that do not belong to the above categories.
 
-Return ONLY the structured JSON requested by the schema.
+IMPORTANT ROUTING RULE:
+
+If the question can be answered by analyzing the numerical race
+dataset, prefer DATA_ANALYSIS.
+
+If the question requires conceptual F1 knowledge from the knowledge
+base, use RACE_KNOWLEDGE.
+
+If the question requires both race data and strategic reasoning,
+use STRATEGY_ANALYSIS.
+
+Return only the required structured JSON output.
 """
 
 
@@ -161,6 +192,10 @@ if st.button("🔍 Analyze Strategy"):
         st.warning("Please enter an F1 question.")
         st.stop()
 
+    # -----------------------------
+    # Step 1: Route the question
+    # -----------------------------
+
     with st.spinner("Routing your question..."):
 
         routing_result = route_question(question)
@@ -168,3 +203,36 @@ if st.button("🔍 Analyze Strategy"):
     st.subheader("🧭 Router Decision")
 
     st.json(routing_result)
+
+
+    # -----------------------------
+    # Step 2: Execute selected agent
+    # -----------------------------
+
+    if routing_result["intent"] == "RACE_KNOWLEDGE":
+        with st.spinner("Retrieving F1 knowledge..."):
+            rag_result = answer_question(question)
+        
+        st.subheader("🤖 RAG Agent Answer")
+        st.write(rag_result["answer"])
+        st.subheader("📚 Sources")
+
+        for source in rag_result["sources"]:
+            st.write(f"- {source}")
+
+    elif routing_result["intent"] == "DATA_ANALYSIS":
+        with st.spinner("Analyzing race data..."):
+            data_result = analyze_lap_data(question)
+        
+        st.subheader("🔍 Data Agent Result")
+        st.json(data_result)
+    
+    else:
+        st.info(f"The {routing_result['intent']} agent is not implemented yet.")
+
+    
+
+    
+
+
+   

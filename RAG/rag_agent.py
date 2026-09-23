@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from groq import Groq
 
-from retriever import load_documents, build_index, search
+from .retriever import load_documents, build_index, search
 from sentence_transformers import SentenceTransformer
 
 
