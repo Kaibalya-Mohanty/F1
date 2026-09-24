@@ -3,173 +3,199 @@ import os
 from dotenv import load_dotenv
 from groq import Groq
 
-from .retriever import load_documents, build_index, search
-from sentence_transformers import SentenceTransformer
+from .retriever import (
+    load_documents,
+    build_index,
+    search,
+)
 
 
-# --------------------------------------------------
-# Configuration
-# --------------------------------------------------
+# ============================================================
+# ENVIRONMENT
+# ============================================================
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEY = os.getenv(
+    "GROQ_API_KEY"
+)
 
 if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY is missing from .env")
+    raise ValueError(
+        "GROQ_API_KEY was not found in .env"
+    )
 
+
+# ============================================================
+# GROQ
+# ============================================================
+
+client = Groq(
+    api_key=GROQ_API_KEY
+)
 
 MODEL = "openai/gpt-oss-120b"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
-# --------------------------------------------------
-# Initialize clients
-# --------------------------------------------------
+# ============================================================
+# RAG INITIALIZATION
+# ============================================================
 
-client = Groq(api_key=GROQ_API_KEY)
-
-embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-
-
-# --------------------------------------------------
-# Build knowledge base
-# --------------------------------------------------
+print("Initializing F1 RAG system...")
 
 documents = load_documents()
 
 index = build_index(
-    documents,
-    embedding_model
+    documents
 )
 
+print("F1 RAG system ready.")
 
-# --------------------------------------------------
-# RAG Agent
-# --------------------------------------------------
 
-def answer_question(query):
+# ============================================================
+# RAG AGENT
+# ============================================================
 
-    # Retrieve relevant knowledge
-    results = search(
+def answer_question(
+    query,
+    top_k=3,
+):
+    """
+    Answer an F1 knowledge question using retrieved
+    knowledge-base chunks.
+    """
+
+    retrieved_chunks = search(
         query,
-        embedding_model,
-        index,
         documents,
-        top_k=3
+        index,
+        top_k=top_k,
     )
 
-    # Combine retrieved chunks
-    context_parts = []
+    if not retrieved_chunks:
 
-    for result in results:
+        return {
+            "answer": (
+                "I could not find relevant information "
+                "in the F1 knowledge base."
+            ),
+            "sources": [],
+            "retrieved_chunks": [],
+        }
 
-        context_parts.append(
-            f"Source: {result['source']}\n"
-            f"Category: {result['category']}\n"
-            f"Content:\n{result['text']}"
+
+    # --------------------------------------------------------
+    # BUILD CONTEXT
+    # --------------------------------------------------------
+
+    context_sections = []
+
+    for number, chunk in enumerate(
+        retrieved_chunks,
+        start=1,
+    ):
+
+        section = (
+            f"[Source {number}: "
+            f"{chunk['source']}]\n"
+            f"{chunk['text']}"
         )
 
-    context = "\n\n---\n\n".join(context_parts)
+        context_sections.append(
+            section
+        )
+
+    context = "\n\n".join(
+        context_sections
+    )
 
 
-    # --------------------------------------------------
-    # Prompt the LLM
-    # --------------------------------------------------
+    # --------------------------------------------------------
+    # PROMPT
+    # --------------------------------------------------------
 
     system_prompt = """
-You are the F1 Strategy Copilot RAG Agent.
+You are the Race Knowledge Agent inside an F1 Strategy Copilot.
 
-Your job is to answer Formula 1 questions using ONLY
-the retrieved knowledge provided by the system.
+Your job is to answer Formula 1 knowledge and strategy questions using
+ONLY the supplied retrieved context.
 
 Rules:
 
-1. Use the retrieved context as your primary source.
-2. Do not invent facts that are not supported by the context.
-3. If the context does not contain enough information,
-   clearly say that the available knowledge base does
-   not contain enough information.
-4. Explain the answer clearly.
-5. Keep the answer concise but useful.
-6. Mention the source files used.
+1. Use the retrieved knowledge as your factual basis.
+2. Do not invent F1 facts that are not supported by the context.
+3. If the context does not contain enough information, clearly say so.
+4. Explain the answer clearly and concisely.
+5. When appropriate, explain the strategic reasoning involved.
+6. Mention which supplied source or sources support the answer.
+7. Do not pretend that general model knowledge came from the retrieved
+   documents.
+
+The purpose of this agent is grounded F1 knowledge retrieval.
 """
 
 
     user_prompt = f"""
-User Question:
+USER QUESTION:
+
 {query}
 
-Retrieved F1 Knowledge:
+
+RETRIEVED F1 KNOWLEDGE:
+
 {context}
 
-Using the retrieved knowledge, answer the user's question.
+
+Answer the user's question using the retrieved knowledge above.
 """
 
 
-    # --------------------------------------------------
-    # Generate answer
-    # --------------------------------------------------
+    # --------------------------------------------------------
+    # GROQ CALL
+    # --------------------------------------------------------
 
     response = client.chat.completions.create(
         model=MODEL,
+
         messages=[
             {
                 "role": "system",
-                "content": system_prompt
+                "content": system_prompt,
             },
             {
                 "role": "user",
-                "content": user_prompt
-            }
+                "content": user_prompt,
+            },
         ],
-        temperature=0.2
+
+        temperature=0.2,
     )
 
-    answer = response.choices[0].message.content
+
+    answer = (
+        response
+        .choices[0]
+        .message
+        .content
+    )
 
 
-    # --------------------------------------------------
-    # Return answer + sources
-    # --------------------------------------------------
+    # --------------------------------------------------------
+    # SOURCES
+    # --------------------------------------------------------
 
     sources = []
 
-    for result in results:
+    for chunk in retrieved_chunks:
 
-        if result["source"] not in sources:
-            sources.append(result["source"])
+        source = chunk["source"]
+
+        if source not in sources:
+            sources.append(source)
 
 
     return {
         "answer": answer,
         "sources": sources,
-        "retrieved_chunks": results
-    }
-
-
-# --------------------------------------------------
-# Test RAG Agent
-# --------------------------------------------------
-
-if __name__ == "__main__":
-
-    question = "Why is an undercut useful in Formula 1?"
-
-    print("\nQuestion:")
-    print(question)
-
-    result = answer_question(question)
-
-    print("\n==============================")
-    print("RAG ANSWER")
-    print("==============================")
-
-    print(result["answer"])
-
-    print("\n==============================")
-    print("SOURCES")
-    print("==============================")
-
-    for source in result["sources"]:
-        print("-", source)
+        "retrieved_chunks": retrieved_chunks,
+    }   
