@@ -17,7 +17,8 @@ The system uses a LangGraph workflow with specialised agents for race knowledge 
 
 ![F1 Strategy Copilot System Architecture](assets/architecture.png)
 
-*Figure: System architecture of the F1 Strategy Copilot.*
+*System architecture of the F1 Strategy Copilot.*
+
 ## Technology stack
 
 - Python and Streamlit
