@@ -87,7 +87,41 @@ Rules:
 - If the answer is properly grounded, return PASS.
 - If important claims are unsupported, return FAIL.
 
-Return only the requested JSON structure.
+IMPORTANT OUTPUT RULES:
+
+You MUST return a JSON object containing ALL of these fields:
+
+{
+    "type": "review",
+    "verdict": "PASS" or "FAIL",
+    "grounded": true or false,
+    "supported_claims": [],
+    "unsupported_claims": [],
+    "missing_evidence": [],
+    "feedback": ""
+}
+
+NEVER omit any field.
+
+If there are no unsupported claims, return:
+
+"unsupported_claims": []
+
+If there is no missing evidence, return:
+
+"missing_evidence": []
+
+If there are no supported claims, return:
+
+"supported_claims": []
+
+The "feedback" field must always contain a string.
+
+The "type" field must always be exactly:
+
+"type": "review"
+
+Return only the JSON object.
 """
 
     # -----------------------------------------------------
@@ -139,6 +173,19 @@ Determine:
 - which claims are unsupported
 - whether important evidence is missing
 - what the Strategy Agent should change if necessary
+
+You MUST return all seven fields:
+
+1. type
+2. verdict
+3. grounded
+4. supported_claims
+5. unsupported_claims
+6. missing_evidence
+7. feedback
+
+Do not omit any field, even when its value is an empty
+array or an empty string.
 """
 
     # -----------------------------------------------------
@@ -147,37 +194,51 @@ Determine:
 
     schema = {
         "type": "object",
+
         "properties": {
+
+            "type": {
+                "type": "string",
+                "enum": ["review"]
+            },
+
             "verdict": {
                 "type": "string",
                 "enum": ["PASS", "FAIL"]
             },
+
             "grounded": {
                 "type": "boolean"
             },
+
             "supported_claims": {
                 "type": "array",
                 "items": {
                     "type": "string"
                 }
             },
+
             "unsupported_claims": {
                 "type": "array",
                 "items": {
                     "type": "string"
                 }
             },
+
             "missing_evidence": {
                 "type": "array",
                 "items": {
                     "type": "string"
                 }
             },
+
             "feedback": {
                 "type": "string"
             }
         },
+
         "required": [
+            "type",
             "verdict",
             "grounded",
             "supported_claims",
@@ -185,6 +246,7 @@ Determine:
             "missing_evidence",
             "feedback"
         ],
+
         "additionalProperties": False
     }
 
@@ -194,6 +256,7 @@ Determine:
 
     response = client.chat.completions.create(
         model=MODEL,
+
         messages=[
             {
                 "role": "system",
@@ -204,7 +267,9 @@ Determine:
                 "content": user_prompt
             }
         ],
+
         temperature=0,
+
         response_format={
             "type": "json_schema",
             "json_schema": {
@@ -218,6 +283,17 @@ Determine:
     result = json.loads(
         response.choices[0].message.content
     )
+
+    # ---------------------------------------------------------
+    # Defensive normalization
+    # ---------------------------------------------------------
+
+    result.setdefault("type", "review")
+    result.setdefault("supported_claims", [])
+    result.setdefault("unsupported_claims", [])
+    result.setdefault("missing_evidence", [])
+    result.setdefault("feedback", "")
+
     # ---------------------------------------------------------
     # Deterministic verdict enforcement
     # ---------------------------------------------------------
@@ -225,7 +301,6 @@ Determine:
     if result.get("unsupported_claims"):
         result["verdict"] = "FAIL"
         result["grounded"] = False
-
 
     else:
         result["verdict"] = "PASS"
@@ -376,22 +451,27 @@ Return:
 
     schema = {
         "type": "object",
+
         "properties": {
+
             "answer": {
                 "type": "string"
             },
+
             "evidence_used": {
                 "type": "array",
                 "items": {
                     "type": "string"
                 }
             },
+
             "strategy_factors": {
                 "type": "array",
                 "items": {
                     "type": "string"
                 }
             },
+
             "limitations": {
                 "type": "array",
                 "items": {
@@ -399,12 +479,14 @@ Return:
                 }
             }
         },
+
         "required": [
             "answer",
             "evidence_used",
             "strategy_factors",
             "limitations"
         ],
+
         "additionalProperties": False
     }
 
@@ -414,6 +496,7 @@ Return:
 
     response = client.chat.completions.create(
         model=MODEL,
+
         messages=[
             {
                 "role": "system",
@@ -424,7 +507,9 @@ Return:
                 "content": user_prompt
             }
         ],
+
         temperature=0,
+
         response_format={
             "type": "json_schema",
             "json_schema": {

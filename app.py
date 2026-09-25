@@ -1,73 +1,433 @@
-import os
-import json
-
 import pandas as pd
 import streamlit as st
-from dotenv import load_dotenv
-from groq import Groq
 
-from RAG.rag_agent import answer_question
-from data.data_agent import analyze_lap_data
-from strategy.strategy_agent import analyze_strategy
-
-from reviewer.reviewer_agent import (
-    review_strategy,
-    revise_strategy
-)
-
-from driver_comparison.driver_comparison_agent import compare_drivers
+from graph.workflow import run_f1_workflow
+from textwrap import dedent
 
 
-# =========================================================
-# Configuration
-# =========================================================
-
-load_dotenv()
-
-api_key = os.getenv("GROQ_API_KEY")
-
-if not api_key:
-    st.error(
-        "GROQ_API_KEY is not configured in the .env file."
+def render_html(html):
+    """Render custom HTML without indentation that Markdown reads as code."""
+    normalized_html = "\n".join(
+        line.lstrip()
+        for line in dedent(html).splitlines()
+    ).strip()
+    st.markdown(
+        normalized_html,
+        unsafe_allow_html=True,
     )
-    st.stop()
-
-client = Groq(
-    api_key=api_key
-)
-
-MODEL = "openai/gpt-oss-120b"
-
-# Maximum number of automatic strategy revisions
-MAX_REVISIONS = 2
 
 
 # =========================================================
-# Streamlit UI
+# PAGE CONFIG
 # =========================================================
 
 st.set_page_config(
     page_title="F1 Strategy Copilot",
     page_icon="🏎️",
-    layout="wide"
-)
-
-st.title("🏎️ F1 Strategy Copilot")
-
-st.write(
-    "Multi-Agent Generative AI System for Formula 1 Strategy Analysis"
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 
 # =========================================================
-# Race Selection
+# CUSTOM CSS
+# =========================================================
+
+render_html(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
+
+    /* -----------------------------------------------------
+       GLOBAL
+    ----------------------------------------------------- */
+
+    .stApp {
+        font-family: "Titillium Web", Arial, sans-serif;
+        background:
+            radial-gradient(
+                circle at 15% 5%,
+                rgba(220, 38, 38, 0.08),
+                transparent 28%
+            ),
+            radial-gradient(
+                circle at 85% 10%,
+                rgba(59, 130, 246, 0.07),
+                transparent 25%
+            ),
+            #0b0d12;
+        color: #f5f5f5;
+    }
+
+    .main .block-container {
+        max-width: 1450px;
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+    }
+
+    /* Hide Streamlit branding */
+    #MainMenu {
+        visibility: hidden;
+    }
+
+    footer {
+        visibility: hidden;
+    }
+
+    header {
+        background: transparent !important;
+    }
+
+    /* -----------------------------------------------------
+       TYPOGRAPHY
+    ----------------------------------------------------- */
+
+    h1, h2, h3, h4, h5, h6,
+    p, label, button, input, textarea, select,
+    [data-testid="stMarkdownContainer"] {
+        font-family: "Titillium Web", Arial, sans-serif !important;
+    }
+
+    h1, h2, h3 {
+        letter-spacing: -0.025em;
+    }
+
+    .muted {
+        color: #9ca3af;
+    }
+
+    /* -----------------------------------------------------
+       HERO
+    ----------------------------------------------------- */
+
+    .hero {
+        padding: 1.8rem 2rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        background:
+            linear-gradient(
+                135deg,
+                rgba(255,255,255,0.055),
+                rgba(255,255,255,0.018)
+            );
+        box-shadow:
+            0 20px 60px rgba(0,0,0,0.25);
+        margin-bottom: 1.4rem;
+    }
+
+    .hero-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .hero-title {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-size: 2.45rem;
+        font-weight: 800;
+        line-height: 1.1;
+        margin: 0;
+    }
+
+    .f1-logo {
+        height: 2.45rem;
+        width: auto;
+        flex: 0 0 auto;
+    }
+
+    .hero-subtitle {
+        margin-top: 0.55rem;
+        color: #a7adb8;
+        font-size: 1rem;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(34,197,94,0.10);
+        border: 1px solid rgba(34,197,94,0.25);
+        color: #86efac;
+        font-size: 0.82rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 10px rgba(34,197,94,0.8);
+    }
+
+    /* -----------------------------------------------------
+       SECTION CARDS
+    ----------------------------------------------------- */
+
+    .panel {
+        background: rgba(255,255,255,0.035);
+        border: 1px solid rgba(255,255,255,0.075);
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .panel-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.7rem;
+    }
+
+    .panel-description {
+        color: #9ca3af;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+    }
+
+    /* -----------------------------------------------------
+       RESULT HERO
+    ----------------------------------------------------- */
+
+    .answer-card {
+        background:
+            linear-gradient(
+                135deg,
+                rgba(30,64,175,0.20),
+                rgba(17,24,39,0.55)
+            );
+        border: 1px solid rgba(96,165,250,0.22);
+        border-radius: 18px;
+        padding: 1.5rem;
+        margin: 0.5rem 0 1.25rem 0;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.18);
+    }
+
+    .answer-label {
+        color: #93c5fd;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.65rem;
+    }
+
+    .answer-text {
+        font-size: 1.08rem;
+        line-height: 1.75;
+        color: #f3f4f6;
+    }
+
+    /* -----------------------------------------------------
+       ROUTER
+    ----------------------------------------------------- */
+
+    .router-card {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .intent-pill {
+        display: inline-block;
+        padding: 0.42rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(168,85,247,0.12);
+        border: 1px solid rgba(168,85,247,0.25);
+        color: #d8b4fe;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+
+    .agent-pill {
+        display: inline-block;
+        padding: 0.42rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(59,130,246,0.10);
+        border: 1px solid rgba(59,130,246,0.22);
+        color: #93c5fd;
+        font-size: 0.8rem;
+    }
+
+    /* -----------------------------------------------------
+       INFO CARDS
+    ----------------------------------------------------- */
+
+    .info-card {
+        height: 100%;
+        padding: 1rem;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.035);
+        border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .info-card-title {
+        font-weight: 700;
+        margin-bottom: 0.55rem;
+    }
+
+    .info-card-item {
+        color: #c4c9d2;
+        line-height: 1.6;
+        margin-bottom: 0.35rem;
+        font-size: 0.9rem;
+    }
+
+    /* -----------------------------------------------------
+       REVIEW
+    ----------------------------------------------------- */
+
+    .review-pass {
+        padding: 1rem 1.15rem;
+        border-radius: 14px;
+        background: rgba(34,197,94,0.10);
+        border: 1px solid rgba(34,197,94,0.25);
+        color: #86efac;
+        font-weight: 700;
+        margin: 0.7rem 0 1rem 0;
+    }
+
+    .review-fail {
+        padding: 1rem 1.15rem;
+        border-radius: 14px;
+        background: rgba(239,68,68,0.10);
+        border: 1px solid rgba(239,68,68,0.25);
+        color: #fca5a5;
+        font-weight: 700;
+        margin: 0.7rem 0 1rem 0;
+    }
+
+    /* -----------------------------------------------------
+       METRICS
+    ----------------------------------------------------- */
+
+    .metric-card {
+        padding: 1rem;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.035);
+        border: 1px solid rgba(255,255,255,0.075);
+        text-align: center;
+    }
+
+    .metric-label {
+        color: #9ca3af;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        margin-top: 0.3rem;
+    }
+
+    /* -----------------------------------------------------
+       RACE BADGE
+    ----------------------------------------------------- */
+
+    .race-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.055);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #d1d5db;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    /* -----------------------------------------------------
+       FOOTER
+    ----------------------------------------------------- */
+
+    .footer {
+        text-align: center;
+        color: #6b7280;
+        font-size: 0.78rem;
+        padding-top: 2rem;
+    }
+
+    /* -----------------------------------------------------
+       BUTTON
+    ----------------------------------------------------- */
+
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 700;
+        padding: 0.55rem 1rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.055);
+    }
+
+    .stButton > button:hover {
+        border-color: rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.09);
+    }
+
+    /* -----------------------------------------------------
+       INPUTS
+    ----------------------------------------------------- */
+
+    div[data-baseweb="select"] > div,
+    textarea,
+    input {
+        border-radius: 10px !important;
+    }
+
+    </style>
+    """
+)
+
+
+# =========================================================
+# HERO
+# =========================================================
+
+render_html(
+    """
+    <div class="hero">
+        <div class="hero-top">
+            <div>
+                <div class="hero-title">
+                    <img
+                        class="f1-logo"
+                        src="https://upload.wikimedia.org/wikipedia/commons/8/8b/F1_%28white%29.svg"
+                        alt="Formula 1 logo"
+                    >
+                    <span>F1 Strategy Copilot</span>
+                </div>
+                <div class="hero-subtitle">
+                    Multi-Agent Generative AI System for Formula 1 Strategy Analysis
+                </div>
+            </div>
+
+            <div class="status-pill">
+                <span class="status-dot"></span>
+                System Ready
+            </div>
+        </div>
+    </div>
+    """
+)
+
+
+# =========================================================
+# LOAD RACE DATA
 # =========================================================
 
 try:
 
-    race_df = pd.read_csv(
-        "data/laps.csv"
-    )
+    race_df = pd.read_csv("data/laps.csv")
 
     race_values = (
         race_df["race"]
@@ -83,25 +443,17 @@ try:
 
         race = race.strip()
 
-        # If the dataset already contains the year,
-        # keep it unchanged.
         if "2024" in race:
-
             display_race = race
 
         else:
-
             display_race = f"{race} 2024"
 
         if display_race not in race_options:
+            race_options.append(display_race)
 
-            race_options.append(
-                display_race
-            )
+    race_options = sorted(race_options)
 
-    race_options = sorted(
-        race_options
-    )
 
 except Exception:
 
@@ -129,11 +481,13 @@ except Exception:
         "Singapore 2024",
         "Spain 2024",
         "São Paulo 2024",
-        "United States 2024"
+        "United States 2024",
     ]
 
 
-# Make Monaco 2024 the default race if available.
+# =========================================================
+# DEFAULT RACE
+# =========================================================
 
 if "Monaco 2024" in race_options:
 
@@ -146,860 +500,1042 @@ else:
     default_race_index = 0
 
 
-selected_race = st.selectbox(
-    "🏁 Select Race:",
-    race_options,
-    index=default_race_index
+# =========================================================
+# INPUT PANEL
+# =========================================================
+
+render_html(
+    """
+    <div class="panel">
+        <div class="panel-title">🎯 Analysis Setup</div>
+        <div class="panel-description">
+            Select a race and ask the Copilot a Formula 1 strategy question.
+        </div>
+    </div>
+    """
 )
 
 
-# =========================================================
-# Question
-# =========================================================
+selected_race = st.selectbox(
+    "🏁 Select Race",
+    race_options,
+    index=default_race_index,
+)
+
 
 question = st.text_area(
-    "Ask your F1 strategy question:",
+    "Ask your F1 strategy question",
     placeholder=(
         "Example: Would pitting Verstappen five laps "
         "earlier have improved his race?"
-    )
+    ),
+    height=130,
+)
+
+
+st.markdown("")
+
+
+analyze_clicked = st.button(
+    "🔍  Analyze Strategy",
+    use_container_width=False,
 )
 
 
 # =========================================================
-# Router Agent
+# RUN WORKFLOW
 # =========================================================
 
-def route_question(user_question):
-
-    router_prompt = """
-You are the Router Agent for an F1 Strategy Copilot.
-
-Your job is to determine which specialized agent should
-handle the user's question.
-
-Available intents:
-
-1. RACE_KNOWLEDGE
-
-Use this for general Formula 1 knowledge and strategy
-concepts that can be answered from the knowledge base.
-
-Examples:
-- What is an undercut?
-- Why is tyre degradation important?
-- How does an overcut work?
-- What happens during a Safety Car?
-
-
-2. DATA_ANALYSIS
-
-Use this when the question asks for a calculation,
-measurement, statistic, or specific result from the
-available race dataset.
-
-Examples:
-- What is the fastest lap?
-- What is the average lap time?
-- How many laps did Max Verstappen complete?
-- What was Lando Norris's average lap time?
-- Which driver was fastest in the dataset?
-
-IMPORTANT:
-
-If a question asks for a specific race-data value such as
-fastest lap, average lap time, lap count, tyre age,
-position, or another measurable value, classify it as
-DATA_ANALYSIS.
-
-Do NOT classify a simple numerical lookup as
-DRIVER_COMPARISON.
-
-
-3. STRATEGY_ANALYSIS
-
-Use this when the user asks for strategic analysis or wants
-to evaluate a race strategy using race data and F1 knowledge.
-
-Examples:
-- Should the driver have pitted earlier?
-- Was an undercut the better strategy?
-- Why did this strategy work?
-- Would a different tyre strategy have been better?
-- Would Verstappen have benefited from pitting earlier?
-
-
-4. DRIVER_COMPARISON
-
-Use this when the user explicitly asks to compare two or
-more drivers using the race dataset.
-
-Examples:
-- Compare Verstappen and Norris.
-- Compare Verstappen and Norris at Monaco.
-- Who had the better lap times?
-- Compare their race pace.
-- How did Verstappen and Norris perform against each other?
-- Compare their tyre usage.
-- Compare their average lap times.
-
-
-5. GENERAL
-
-Use this for questions that do not belong to the above
-categories.
-
-
-IMPORTANT ROUTING RULES:
-
-If the question can be answered by analyzing one specific
-numerical race-data value, prefer DATA_ANALYSIS.
-
-If the question requires conceptual F1 knowledge from the
-knowledge base, use RACE_KNOWLEDGE.
-
-If the question requires strategic reasoning using race data
-and F1 knowledge, use STRATEGY_ANALYSIS.
-
-If the user explicitly wants two or more drivers compared,
-use DRIVER_COMPARISON.
-
-Return only the required structured JSON output.
-"""
-
-    response = client.chat.completions.create(
-
-        model=MODEL,
-
-        messages=[
-            {
-                "role": "system",
-                "content": router_prompt
-            },
-            {
-                "role": "user",
-                "content": user_question
-            }
-        ],
-
-        response_format={
-            "type": "json_schema",
-
-            "json_schema": {
-
-                "name": "f1_router",
-
-                "strict": True,
-
-                "schema": {
-
-                    "type": "object",
-
-                    "properties": {
-
-                        "intent": {
-
-                            "type": "string",
-
-                            "enum": [
-                                "RACE_KNOWLEDGE",
-                                "DATA_ANALYSIS",
-                                "STRATEGY_ANALYSIS",
-                                "DRIVER_COMPARISON",
-                                "GENERAL"
-                            ]
-                        },
-
-                        "agents": {
-
-                            "type": "array",
-
-                            "items": {
-
-                                "type": "string",
-
-                                "enum": [
-                                    "RAG_AGENT",
-                                    "DATA_AGENT",
-                                    "STRATEGY_AGENT",
-                                    "DRIVER_COMPARISON_AGENT"
-                                ]
-                            }
-                        },
-
-                        "reason": {
-
-                            "type": "string"
-                        }
-                    },
-
-                    "required": [
-                        "intent",
-                        "agents",
-                        "reason"
-                    ],
-
-                    "additionalProperties": False
-                }
-            }
-        },
-
-        temperature=0.2
-    )
-
-    return json.loads(
-        response.choices[0].message.content
-    )
-
-
-# =========================================================
-# Run
-# =========================================================
-
-if st.button("🔍 Analyze Strategy"):
+if analyze_clicked:
 
     if not question.strip():
 
         st.warning(
-            "Please enter an F1 question."
+            "Please enter an F1 question before starting the analysis."
         )
 
         st.stop()
 
 
     # =====================================================
-    # Add selected race to the user's question
+    # WORKFLOW STATUS
     # =====================================================
 
-    question_with_race = (
-        f"{question.strip()}\n\n"
-        f"Selected race: {selected_race}"
+    with st.status(
+        "Running F1 Strategy Copilot...",
+        expanded=True,
+    ) as workflow_status:
+
+        st.write("🧭 Routing question to the appropriate agent...")
+
+        try:
+
+            result = run_f1_workflow(
+                question=question,
+                selected_race=selected_race,
+            )
+
+            st.write("🤖 Agent analysis completed.")
+            st.write("🧪 Reviewing generated analysis...")
+
+            workflow_status.update(
+                label="F1 Strategy Copilot completed",
+                state="complete",
+                expanded=False,
+            )
+
+        except Exception as e:
+
+            workflow_status.update(
+                label="Workflow failed",
+                state="error",
+                expanded=True,
+            )
+
+            st.error(
+                "An error occurred while running the F1 workflow."
+            )
+
+            st.exception(e)
+
+            st.stop()
+
+
+    # =====================================================
+    # EXTRACT STATE
+    # =====================================================
+
+    intent = result.get(
+        "intent",
+        "UNKNOWN",
+    )
+
+    agents = result.get(
+        "agents",
+        [],
+    )
+
+    routing_reason = result.get(
+        "routing_reason",
+        "",
+    )
+
+    final_answer = result.get(
+        "final_answer",
+        "",
+    )
+
+    revision_count = result.get(
+        "revision_count",
+        0,
+    )
+
+    review_result = result.get(
+        "review_result",
+    )
+
+    rag_result = result.get(
+        "rag_result",
+    )
+
+    data_result = result.get(
+        "data_result",
+    )
+
+    strategy_result = result.get(
+        "strategy_result",
+    )
+
+    comparison_result = result.get(
+        "comparison_result",
     )
 
 
     # =====================================================
-    # Step 1: Route the question
+    # ROUTER DECISION
     # =====================================================
 
-    with st.spinner(
-        "Routing your question..."
-    ):
+    render_html(
+    """
+        <div class="panel">
+            <div class="panel-title">🧭 Routing Decision</div>
+        """
+)
 
-        routing_result = route_question(
-            question_with_race
+    agent_html = ""
+
+    if agents:
+
+        for agent in agents:
+
+            agent_html += (
+                f'<span class="agent-pill">🤖 {agent}</span>'
+            )
+
+    render_html(
+    f"""
+        <div class="router-card">
+            <span class="intent-pill">
+                {intent}
+            </span>
+            {agent_html}
+        </div>
+        """
+)
+
+    if routing_reason:
+
+        st.caption(
+            f"Routing reason: {routing_reason}"
         )
 
+    with st.expander(
+        "🔧 View raw router output"
+    ):
 
-    st.subheader(
-        "🧭 Router Decision"
+        st.json(
+            {
+                "intent": intent,
+                "agents": agents,
+                "routing_reason": routing_reason,
+            }
+        )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
     )
-
-    st.json(
-        routing_result
-    )
-
-
-    # =====================================================
-    # Step 2: Execute selected agent
-    # =====================================================
 
 
     # =====================================================
     # RAG AGENT
     # =====================================================
 
-    if routing_result["intent"] == "RACE_KNOWLEDGE":
+    if intent == "RACE_KNOWLEDGE":
 
-        with st.spinner(
-            "Retrieving F1 knowledge..."
-        ):
+        render_html(
+    """
+            <div class="answer-card">
+                <div class="answer-label">
+                    🤖 Race Knowledge
+                </div>
+            """
+)
 
-            # RAG does not need race-specific context
-            # for general knowledge questions.
+        if rag_result:
 
-            rag_result = answer_question(
-                question
+            rag_answer = rag_result.get(
+                "answer",
+                final_answer,
             )
 
+            render_html(
+    f"""
+                <div class="answer-text">
+                    {rag_answer}
+                </div>
+                </div>
+                """
+)
 
-        st.subheader(
-            "🤖 RAG Agent Answer"
-        )
-
-        st.write(
-            rag_result["answer"]
-        )
-
-
-        st.subheader(
-            "📚 Sources"
-        )
-
-        for source in rag_result["sources"]:
-
-            st.write(
-                f"- {source}"
+            rag_sources = rag_result.get(
+                "sources",
+                [],
             )
+
+            if rag_sources:
+
+                st.subheader("📚 Sources")
+
+                source_cols = st.columns(
+                    min(len(rag_sources), 3)
+                )
+
+                for index, source in enumerate(
+                    rag_sources
+                ):
+
+                    with source_cols[
+                        index % len(source_cols)
+                    ]:
+
+                        render_html(
+    f"""
+                            <div class="info-card">
+                                📄 {source}
+                            </div>
+                            """
+)
+
+        else:
+
+            render_html(
+    f"""
+                <div class="answer-text">
+                    {final_answer}
+                </div>
+                </div>
+                """
+)
 
 
     # =====================================================
     # DATA AGENT
     # =====================================================
 
-    elif routing_result["intent"] == "DATA_ANALYSIS":
+    elif intent == "DATA_ANALYSIS":
 
-        with st.spinner(
-            "Analyzing race data..."
-        ):
+        render_html(
+    """
+            <div class="answer-card">
+                <div class="answer-label">
+                    🔍 Data Analysis
+                </div>
+            """
+)
 
-            data_result = analyze_lap_data(
-                question_with_race
-            )
+        if final_answer:
 
+            render_html(
+    f"""
+                <div class="answer-text">
+                    {final_answer}
+                </div>
+                </div>
+                """
+)
 
-        st.subheader(
-            "🔍 Data Agent Result"
-        )
+        else:
 
-        st.json(
-            data_result
-        )
+            render_html(
+    """
+                </div>
+                """
+)
+
+        if data_result:
+
+            with st.expander(
+                "📊 View Data Agent Details"
+            ):
+
+                st.json(
+                    data_result
+                )
+
+        render_html(
+    f"""
+            <div class="race-badge">
+                🏁 Race analyzed: {selected_race}
+            </div>
+            """
+)
 
 
     # =====================================================
     # STRATEGY AGENT
     # =====================================================
 
-    elif routing_result["intent"] == "STRATEGY_ANALYSIS":
-
+    elif intent == "STRATEGY_ANALYSIS":
 
         # -------------------------------------------------
-        # Step 1: Strategy Agent
+        # MAIN ANSWER
         # -------------------------------------------------
 
-        with st.spinner(
-            "Analyzing race strategy..."
-        ):
+        render_html(
+    """
+            <div class="answer-card">
+                <div class="answer-label">
+                    🏎️ Strategy Agent Analysis
+                </div>
+            """
+)
 
-            strategy_result = analyze_strategy(
-                question_with_race
+        strategy_answer = ""
+
+        if final_answer:
+
+            strategy_answer = final_answer
+
+        elif strategy_result:
+
+            strategy_answer = strategy_result.get(
+                "answer",
+                "",
             )
 
+        if strategy_answer:
 
-        # -------------------------------------------------
-        # Step 2: Initial Reviewer
-        # -------------------------------------------------
-
-        with st.spinner(
-            "Reviewing strategy..."
-        ):
-
-            review_result = review_strategy(
-
-                user_query=question_with_race,
-
-                strategy_result=strategy_result,
-
-                rag_evidence=[
-                    strategy_result.get(
-                        "rag_evidence",
-                        ""
-                    )
-                ],
-
-                data_evidence=strategy_result.get(
-                    "data_evidence",
-                    ""
-                )
-            )
-
-
-        # -------------------------------------------------
-        # Step 3: Revision Loop
-        # -------------------------------------------------
-
-        revision_count = 0
-
-
-        while (
-
-            review_result.get(
-                "verdict"
-            ) == "FAIL"
-
-            and
-
-            revision_count < MAX_REVISIONS
-
-        ):
-
-            revision_count += 1
-
-
-            # ---------------------------------------------
-            # Revise Strategy
-            # ---------------------------------------------
-
-            with st.spinner(
-                f"Revising strategy "
-                f"(attempt {revision_count})..."
-            ):
-
-                revised_result = revise_strategy(
-
-                    user_query=question_with_race,
-
-                    strategy_result=strategy_result,
-
-                    review_result=review_result
-
-                )
-
-
-            # ---------------------------------------------
-            # Merge revised strategy
-            # ---------------------------------------------
-
-            strategy_result = {
-
-                **strategy_result,
-
-                **revised_result
-
-            }
-
-
-            # ---------------------------------------------
-            # Re-review revised strategy
-            # ---------------------------------------------
-
-            with st.spinner(
-                "Re-reviewing revised strategy..."
-            ):
-
-                review_result = review_strategy(
-
-                    user_query=question_with_race,
-
-                    strategy_result=strategy_result,
-
-                    rag_evidence=[
-                        strategy_result.get(
-                            "rag_evidence",
-                            ""
-                        )
-                    ],
-
-                    data_evidence=strategy_result.get(
-                        "data_evidence",
-                        ""
-                    )
-                )
-
-
-        # -------------------------------------------------
-        # Step 4: Strategy Answer
-        # -------------------------------------------------
-
-        st.subheader(
-            "🏎️ Strategy Agent Analysis"
-        )
-
-
-        if strategy_result.get(
-            "answer"
-        ):
-
-            st.write(
-                strategy_result["answer"]
-            )
+            render_html(
+    f"""
+                <div class="answer-text">
+                    {strategy_answer}
+                </div>
+                </div>
+                """
+)
 
         else:
 
             st.warning(
-                "The Strategy Agent did not return "
-                "a final answer."
+                "The Strategy Agent did not return a final answer."
+            )
+
+            st.markdown(
+                "</div>",
+                unsafe_allow_html=True,
             )
 
 
         # -------------------------------------------------
-        # Display selected race
+        # RACE
         # -------------------------------------------------
 
-        st.info(
-            f"🏁 Race analyzed: **{selected_race}**"
-        )
+        render_html(
+    f"""
+            <div class="race-badge">
+                🏁 {selected_race}
+            </div>
+            """
+)
 
 
         # -------------------------------------------------
-        # Revision Status
+        # REVIEW STATUS
         # -------------------------------------------------
 
-        if revision_count > 0:
+        if review_result:
 
-            if review_result.get(
-                "verdict"
-            ) == "PASS":
+            verdict = review_result.get(
+                "verdict",
+                "",
+            )
 
-                st.success(
-                    f"Strategy passed review after "
-                    f"{revision_count} revision(s)."
-                )
+            if verdict == "PASS":
+
+                if revision_count > 0:
+
+                    render_html(
+    f"""
+                        <div class="review-pass">
+                            ✅ Strategy passed review after
+                            {revision_count} revision(s).
+                        </div>
+                        """
+)
+
+                else:
+
+                    render_html(
+    """
+                        <div class="review-pass">
+                            ✅ Strategy passed review without requiring a revision.
+                        </div>
+                        """
+)
 
             else:
 
-                st.warning(
-                    f"The strategy remained unresolved "
-                    f"after {revision_count} revision(s)."
+                render_html(
+    f"""
+                    <div class="review-fail">
+                        ⚠️ Strategy review returned:
+                        {verdict or "UNRESOLVED"}
+                    </div>
+                    """
+)
+
+
+        # -------------------------------------------------
+        # STRATEGY DETAILS
+        # -------------------------------------------------
+
+        if strategy_result:
+
+            evidence_used = strategy_result.get(
+                "evidence_used",
+                [],
+            )
+
+            strategy_factors = strategy_result.get(
+                "strategy_factors",
+                [],
+            )
+
+            limitations = strategy_result.get(
+                "limitations",
+                [],
+            )
+
+            rag_sources = strategy_result.get(
+                "rag_sources",
+                [],
+            )
+
+
+            # =============================================
+            # EVIDENCE
+            # =============================================
+
+            if evidence_used:
+
+                st.subheader(
+                    "📊 Evidence Used"
+                )
+
+                evidence_cols = st.columns(
+                    min(
+                        len(evidence_used),
+                        3,
+                    )
+                )
+
+                for index, evidence in enumerate(
+                    evidence_used
+                ):
+
+                    with evidence_cols[
+                        index % len(evidence_cols)
+                    ]:
+
+                        render_html(
+    f"""
+                            <div class="info-card">
+                                <div class="info-card-title">
+                                    Evidence {index + 1}
+                                </div>
+
+                                <div class="info-card-item">
+                                    {evidence}
+                                </div>
+                            </div>
+                            """
+)
+
+
+            # =============================================
+            # STRATEGY FACTORS
+            # =============================================
+
+            if strategy_factors:
+
+                st.subheader(
+                    "🧠 Strategy Factors"
+                )
+
+                factor_cols = st.columns(
+                    min(
+                        len(strategy_factors),
+                        3,
+                    )
+                )
+
+                for index, factor in enumerate(
+                    strategy_factors
+                ):
+
+                    with factor_cols[
+                        index % len(factor_cols)
+                    ]:
+
+                        render_html(
+    f"""
+                            <div class="info-card">
+                                <div class="info-card-title">
+                                    Factor {index + 1}
+                                </div>
+
+                                <div class="info-card-item">
+                                    {factor}
+                                </div>
+                            </div>
+                            """
+)
+
+
+            # =============================================
+            # LIMITATIONS
+            # =============================================
+
+            if limitations:
+
+                st.subheader(
+                    "⚠️ Limitations"
+                )
+
+                for limitation in limitations:
+
+                    st.warning(
+                        limitation
+                    )
+
+
+            # =============================================
+            # SOURCES
+            # =============================================
+
+            if rag_sources:
+
+                unique_sources = list(
+                    dict.fromkeys(
+                        rag_sources
+                    )
+                )
+
+                st.subheader(
+                    "📚 Knowledge Sources"
+                )
+
+                source_cols = st.columns(
+                    min(
+                        len(unique_sources),
+                        3,
+                    )
+                )
+
+                for index, source in enumerate(
+                    unique_sources
+                ):
+
+                    with source_cols[
+                        index % len(source_cols)
+                    ]:
+
+                        render_html(
+    f"""
+                            <div class="info-card">
+                                📄 {source}
+                            </div>
+                            """
+)
+
+
+            # =============================================
+            # REVIEWER DETAILS
+            # =============================================
+
+            if review_result:
+
+                st.subheader(
+                    "🧪 Reviewer Details"
+                )
+
+                review_col1, review_col2 = st.columns(
+                    2
+                )
+
+                with review_col1:
+
+                    render_html(
+    f"""
+                        <div class="metric-card">
+                            <div class="metric-label">
+                                Verdict
+                            </div>
+                            <div class="metric-value">
+                                {review_result.get(
+                                    "verdict",
+                                    "N/A"
+                                )}
+                            </div>
+                        </div>
+                        """
+)
+
+                with review_col2:
+
+                    grounded = review_result.get(
+                        "grounded",
+                        False,
+                    )
+
+                    grounded_text = (
+                        "Yes"
+                        if grounded
+                        else "No"
+                    )
+
+                    render_html(
+    f"""
+                        <div class="metric-card">
+                            <div class="metric-label">
+                                Evidence Grounded
+                            </div>
+                            <div class="metric-value">
+                                {grounded_text}
+                            </div>
+                        </div>
+                        """
+)
+
+
+            # =============================================
+            # RAW OUTPUTS
+            # =============================================
+
+            with st.expander(
+                "🔧 View Full Strategy Agent Output"
+            ):
+
+                st.json(
+                    strategy_result
                 )
 
 
-        # -------------------------------------------------
-        # Evidence Used
-        # -------------------------------------------------
+            if review_result:
 
-        evidence_used = strategy_result.get(
-            "evidence_used",
-            []
-        )
+                with st.expander(
+                    "🧪 View Full Reviewer Output"
+                ):
 
-
-        if evidence_used:
-
-            st.subheader(
-                "📊 Evidence Used"
-            )
-
-            for evidence in evidence_used:
-
-                st.write(
-                    f"- {evidence}"
-                )
-
-
-        # -------------------------------------------------
-        # Strategy Factors
-        # -------------------------------------------------
-
-        strategy_factors = strategy_result.get(
-            "strategy_factors",
-            []
-        )
-
-
-        if strategy_factors:
-
-            st.subheader(
-                "🧠 Strategy Factors"
-            )
-
-            for factor in strategy_factors:
-
-                st.write(
-                    f"- {factor}"
-                )
-
-
-        # -------------------------------------------------
-        # Limitations
-        # -------------------------------------------------
-
-        limitations = strategy_result.get(
-            "limitations",
-            []
-        )
-
-
-        if limitations:
-
-            st.subheader(
-                "⚠️ Limitations"
-            )
-
-            for limitation in limitations:
-
-                st.write(
-                    f"- {limitation}"
-                )
-
-
-        # -------------------------------------------------
-        # RAG Sources
-        # -------------------------------------------------
-
-        rag_sources = strategy_result.get(
-            "rag_sources",
-            []
-        )
-
-
-        unique_sources = list(
-            dict.fromkeys(
-                rag_sources
-            )
-        )
-
-
-        if unique_sources:
-
-            st.subheader(
-                "📚 RAG Sources"
-            )
-
-            for source in unique_sources:
-
-                st.write(
-                    f"- {source}"
-                )
-
-
-        # -------------------------------------------------
-        # Full Strategy Agent Output
-        # -------------------------------------------------
-
-        with st.expander(
-            "🔧 Full Strategy Agent Output"
-        ):
-
-            st.json(
-                strategy_result
-            )
-
-
-        # -------------------------------------------------
-        # Reviewer Agent Result
-        # -------------------------------------------------
-
-        st.subheader(
-            "🧪 Reviewer Agent Result"
-        )
-
-        st.json(
-            review_result
-        )
+                    st.json(
+                        review_result
+                    )
 
 
     # =====================================================
     # DRIVER COMPARISON
     # =====================================================
 
-    elif routing_result["intent"] == "DRIVER_COMPARISON":
-
-
-        # -------------------------------------------------
-        # Step 1: Driver Comparison Agent
-        # -------------------------------------------------
-
-        with st.spinner(
-            "Comparing drivers..."
-        ):
-
-            comparison_result = compare_drivers(
-                question_with_race
-            )
-
-
-        # -------------------------------------------------
-        # Step 2: Display comparison
-        # -------------------------------------------------
+    elif intent == "DRIVER_COMPARISON":
 
         st.subheader(
             "🏁 Driver Comparison"
         )
 
+        if not comparison_result:
 
-        if comparison_result.get(
-            "status"
-        ) == "success":
+            st.warning(
+                "The Driver Comparison Agent did not return a result."
+            )
 
-
-            # ---------------------------------------------
-            # Race
-            # ---------------------------------------------
-
-            if comparison_result.get(
-                "race"
-            ):
+            if final_answer:
 
                 st.write(
-                    f"**Race:** "
-                    f"{comparison_result['race']}"
+                    final_answer
                 )
 
+        else:
 
-            # ---------------------------------------------
-            # Driver Statistics
-            # ---------------------------------------------
-
-            drivers = comparison_result.get(
-                "drivers",
-                []
+            status = comparison_result.get(
+                "status"
             )
 
+            if status == "success":
 
-            if drivers:
+                # -----------------------------------------
+                # RACE
+                # -----------------------------------------
 
-                st.subheader(
-                    "📊 Driver Statistics"
+                comparison_race = comparison_result.get(
+                    "race"
                 )
 
+                if comparison_race:
 
-                for driver_data in drivers:
+                    render_html(
+    f"""
+                        <div class="race-badge">
+                            🏁 {comparison_race}
+                        </div>
+                        """
+)
 
-                    driver = driver_data.get(
-                        "driver",
-                        "Unknown"
+
+                # -----------------------------------------
+                # DRIVER STATISTICS
+                # -----------------------------------------
+
+                drivers = comparison_result.get(
+                    "drivers",
+                    [],
+                )
+
+                if drivers:
+
+                    st.subheader(
+                        "📊 Driver Statistics"
                     )
 
+                    for driver_data in drivers:
 
-                    st.markdown(
-                        f"### {driver}"
-                    )
-
-
-                    col1, col2, col3 = st.columns(3)
-
-
-                    with col1:
-                        average_lap = driver_data.get("average_lap_time", 0)
-
-                        st.metric(
-                            "Average Lap",
-                            f"{average_lap:.3f} s"
+                        driver = driver_data.get(
+                            "driver",
+                            "Unknown",
                         )
-
-
-                    with col2:
-                        fastest_lap = driver_data.get("fastest_lap", 0)
-
-                        st.metric(
-                            "Fastest Lap",
-                            f"{fastest_lap:.3f} s"
-                        )
-
-
-                    with col3:
-                        average_position = driver_data.get("average_position", 0)
-
-                        st.metric(
-                            "Average Position",
-                            f"{average_position:.1f}"
-                        )
-
-
-                    # -------------------------------------
-                    # Additional statistics
-                    # -------------------------------------
-
-                    st.write(
-                        f"**Laps analyzed:** "
-                        f"{driver_data.get('laps_analyzed', 0)}"
-                    )
-
-
-                    st.write(
-                        f"**Average tyre age:** "
-                        f"{driver_data.get('average_tyre_age', 0):.2f} laps"
-                    )
-
-
-                    # -------------------------------------
-                    # Compound statistics
-                    # -------------------------------------
-
-                    compound_stats = driver_data.get(
-                        "compound_stats",
-                        {}
-                    )
-
-
-                    if compound_stats:
 
                         st.markdown(
-                            "**Tyre Compound Statistics**"
+                            f"### {driver}"
                         )
 
 
-                        for compound, stats in (
-                            compound_stats.items()
-                        ):
+                        # =================================
+                        # METRICS
+                        # =================================
 
-                            st.write(
-                                f"**{compound}** — "
-                                f"Average: "
-                                f"{stats.get('average_lap_time', 0):.3f}s | "
-                                f"Fastest: "
-                                f"{stats.get('fastest_lap', 0):.3f}s | "
-                                f"Laps: "
-                                f"{stats.get('laps', 0)}"
+                        col1, col2, col3 = st.columns(
+                            3
+                        )
+
+
+                        with col1:
+
+                            average_lap = driver_data.get(
+                                "average_lap_time",
+                                0,
                             )
 
+                            render_html(
+    f"""
+                                <div class="metric-card">
+                                    <div class="metric-label">
+                                        Average Lap
+                                    </div>
 
-                    # -------------------------------------
-                    # Data Quality
-                    # -------------------------------------
+                                    <div class="metric-value">
+                                        {average_lap:.3f}s
+                                    </div>
+                                </div>
+                                """
+)
 
-                    data_quality = driver_data.get(
-                        "data_quality",
-                        {}
+
+                        with col2:
+
+                            fastest_lap = driver_data.get(
+                                "fastest_lap",
+                                0,
+                            )
+
+                            render_html(
+    f"""
+                                <div class="metric-card">
+                                    <div class="metric-label">
+                                        Fastest Lap
+                                    </div>
+
+                                    <div class="metric-value">
+                                        {fastest_lap:.3f}s
+                                    </div>
+                                </div>
+                                """
+)
+
+
+                        with col3:
+
+                            average_position = driver_data.get(
+                                "average_position",
+                                0,
+                            )
+
+                            render_html(
+    f"""
+                                <div class="metric-card">
+                                    <div class="metric-label">
+                                        Average Position
+                                    </div>
+
+                                    <div class="metric-value">
+                                        {average_position:.1f}
+                                    </div>
+                                </div>
+                                """
+)
+
+
+                        st.markdown("")
+
+
+                        # =================================
+                        # ADDITIONAL STATS
+                        # =================================
+
+                        stat1, stat2 = st.columns(
+                            2
+                        )
+
+
+                        with stat1:
+
+                            laps_analyzed = driver_data.get(
+                                "laps_analyzed",
+                                0,
+                            )
+
+                            render_html(
+    f"""
+                                <div class="info-card">
+                                    <div class="info-card-title">
+                                        🏁 Laps Analyzed
+                                    </div>
+
+                                    <div class="info-card-item">
+                                        {laps_analyzed}
+                                    </div>
+                                </div>
+                                """
+)
+
+
+                        with stat2:
+
+                            average_tyre_age = driver_data.get(
+                                "average_tyre_age",
+                                0,
+                            )
+
+                            render_html(
+    f"""
+                                <div class="info-card">
+                                    <div class="info-card-title">
+                                        🛞 Average Tyre Age
+                                    </div>
+
+                                    <div class="info-card-item">
+                                        {average_tyre_age:.2f} laps
+                                    </div>
+                                </div>
+                                """
+)
+
+
+                        # =================================
+                        # COMPOUND STATS
+                        # =================================
+
+                        compound_stats = driver_data.get(
+                            "compound_stats",
+                            {},
+                        )
+
+                        if compound_stats:
+
+                            st.markdown(
+                                "**Tyre Compound Statistics**"
+                            )
+
+                            compound_cols = st.columns(
+                                min(
+                                    len(compound_stats),
+                                    3,
+                                )
+                            )
+
+                            for index, (
+                                compound,
+                                stats,
+                            ) in enumerate(
+                                compound_stats.items()
+                            ):
+
+                                with compound_cols[
+                                    index % len(compound_cols)
+                                ]:
+
+                                    render_html(
+    f"""
+                                        <div class="info-card">
+                                            <div class="info-card-title">
+                                                🛞 {compound}
+                                            </div>
+
+                                            <div class="info-card-item">
+                                                Average:
+                                                {stats.get(
+                                                    "average_lap_time",
+                                                    0
+                                                ): .3f}s
+                                            </div>
+
+                                            <div class="info-card-item">
+                                                Fastest:
+                                                {stats.get(
+                                                    "fastest_lap",
+                                                    0
+                                                ): .3f}s
+                                            </div>
+
+                                            <div class="info-card-item">
+                                                Laps:
+                                                {stats.get(
+                                                    "laps",
+                                                    0
+                                                )}
+                                            </div>
+                                        </div>
+                                        """
+)
+
+
+                        # =================================
+                        # DATA QUALITY
+                        # =================================
+
+                        data_quality = driver_data.get(
+                            "data_quality",
+                            {},
+                        )
+
+                        if data_quality:
+
+                            with st.expander(
+                                f"🔎 {driver} Data Quality"
+                            ):
+
+                                st.json(
+                                    data_quality
+                                )
+
+
+                # -----------------------------------------
+                # COMPARISON ANALYSIS
+                # -----------------------------------------
+
+                comparison_text = comparison_result.get(
+                    "comparison",
+                    "",
+                )
+
+                if comparison_text:
+
+                    st.subheader(
+                        "🧠 Comparison Analysis"
+                    )
+
+                    render_html(
+    f"""
+                        <div class="answer-card">
+                            <div class="answer-text">
+                                {comparison_text}
+                            </div>
+                        </div>
+                        """
+)
+
+
+                # -----------------------------------------
+                # RAW OUTPUT
+                # -----------------------------------------
+
+                with st.expander(
+                    "🔧 View Full Driver Comparison Output"
+                ):
+
+                    st.json(
+                        comparison_result
                     )
 
 
-                    if data_quality:
+            else:
 
-                        with st.expander(
-                            f"🔎 {driver} Data Quality"
-                        ):
-
-                            st.json(
-                                data_quality
-                            )
-
-
-            # ---------------------------------------------
-            # Comparison Text
-            # ---------------------------------------------
-
-            comparison_text = comparison_result.get(
-                "comparison",
-                ""
-            )
-
-
-            if comparison_text:
-
-                st.subheader(
-                    "🧠 Comparison Analysis"
+                st.error(
+                    "The Driver Comparison Agent could not complete the comparison."
                 )
-
-                st.markdown(
-                    comparison_text
-                )
-
-
-            # ---------------------------------------------
-            # Full Output
-            # ---------------------------------------------
-
-            with st.expander(
-                "🔧 Full Driver Comparison Output"
-            ):
 
                 st.json(
                     comparison_result
                 )
-
-
-        else:
-
-            st.error(
-                "The Driver Comparison Agent could not "
-                "complete the comparison."
-            )
-
-            st.json(
-                comparison_result
-            )
 
 
     # =====================================================
@@ -1009,6 +1545,43 @@ if st.button("🔍 Analyze Strategy"):
     else:
 
         st.info(
-            f"The {routing_result['intent']} "
-            "agent is not implemented yet."
+            f"The workflow classified this question as "
+            f"**{intent}**."
         )
+
+        if final_answer:
+
+            render_html(
+    f"""
+                <div class="answer-card">
+                    <div class="answer-label">
+                        🧠 Copilot Answer
+                    </div>
+
+                    <div class="answer-text">
+                        {final_answer}
+                    </div>
+                </div>
+                """
+)
+
+        else:
+
+            st.write(
+                "No final answer was generated."
+            )
+
+
+# =========================================================
+# FOOTER
+# =========================================================
+
+render_html(
+    """
+    <div class="footer">
+        🏎️ F1 Strategy Copilot &nbsp;•&nbsp;
+        Multi-Agent Generative AI &nbsp;•&nbsp;
+        LangGraph
+    </div>
+    """
+)
