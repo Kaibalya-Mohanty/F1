@@ -13,36 +13,11 @@ A Streamlit application that answers Formula 1 race questions using a LangGraph 
 
 ## System architecture
 
-```mermaid
-flowchart TD
-    UI[Streamlit dashboard<br/>Question + selected race] --> ROUTER[Router agent<br/>Structured intent]
+The system uses a LangGraph workflow with specialised agents for race knowledge retrieval, data analysis, strategy analysis, driver comparison, and general F1 questions. Strategy responses are passed through a reviewer and revision workflow before the final answer is displayed.
 
-    ROUTER -->|RACE_KNOWLEDGE| RAG[RAG agent<br/>Local strategy retrieval]
-    ROUTER -->|DATA_ANALYSIS| DATA[Data agent<br/>Lap statistics]
-    ROUTER -->|STRATEGY_ANALYSIS| STRATEGY[Strategy agent<br/>Race data + strategy knowledge]
-    ROUTER -->|DRIVER_COMPARISON| COMPARE[Driver comparison agent]
-    ROUTER -->|Other questions| GENERAL[General response agent]
+![F1 Strategy Copilot System Architecture](assets/architecture.png)
 
-    KB[(Strategy text files)] --> RAG
-    CSV[(data/laps.csv)] --> DATA
-    CSV --> STRATEGY
-    CSV --> COMPARE
-    RAG --> ANSWER[Final answer]
-    DATA --> ANSWER
-    COMPARE --> ANSWER
-    GENERAL --> ANSWER
-
-    STRATEGY --> REVIEWER[Reviewer agent]
-    REVIEWER -->|PASS| FINAL[Final strategy answer]
-    REVIEWER -->|FAIL and revisions remain| REVISION[Revision agent]
-    REVISION --> REVIEWER
-    REVIEWER -->|Revision limit reached| FINAL
-    FINAL --> ANSWER
-    ANSWER --> UI
-```
-
-The strategy path uses the lap-analysis code and retrieved strategy knowledge before review. The graph allows a maximum of two revisions, as configured in `graph/workflow.py`.
-
+*Figure: System architecture of the F1 Strategy Copilot.*
 ## Technology stack
 
 - Python and Streamlit
@@ -152,7 +127,7 @@ This script downloads race-session data and may take time and require network ac
 
 ![Driver comparison for Verstappen and Leclerc at Monaco 2024](assets/screenshots/driver-comparison-monaco-2024.png)
 
-### Strategy response example — supplied capture
+### Strategy response example — Leclerc at Bahrain 2024
 
 ![Strategy analysis screenshot supplied with the project](assets/screenshots/strategy-response-leclerc-capture.png)
 
