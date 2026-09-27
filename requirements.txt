@@ -1,0 +1,15 @@
+streamlit
+langgraph
+langchain-core
+langchain-groq
+groq
+python-dotenv
+
+pandas
+numpy
+scikit-learn
+
+faiss-cpu
+onnxruntime
+huggingface-hub
+tokenizers
